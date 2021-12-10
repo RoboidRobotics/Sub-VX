@@ -13,6 +13,7 @@
 __opencv_version__ = r'4.1.1'
 
 import sys
+import os
 import time
 import cv2 as cv
 import math as ma
@@ -23,6 +24,25 @@ import math as ma
 #import matplotlib.image as mpimg
 
 size =(1300,800)
+
+#if the user does not specify a label for the data, terminate.
+if len(sys.argv) == 1:
+    raise Exception("Please provide a label for the images being taken!")
+__data_label__ = sys.argv[1]
+
+#make a path to the folder where images will be saved
+__data_folder_path__ = os.path.abspath(r"datasets\{}".format(__data_label__))
+
+#if the folder does not already exist, make it.
+if not os.path.exists(__data_folder_path__):
+    print("Creating folder for saved images at \"{}\"".format(__data_folder_path__))
+    os.makedirs(__data_folder_path__)
+
+print("Program will save images to \"{}\"".format(__data_folder_path__))
+
+
+
+
 
 if(__opencv_version__ != cv.__version__):
     print('WARNING: The OpenCV version being used ({}) is different from the OpenCV version this module was written in! ({})'.format(cv.__version__, __opencv_version__))
@@ -81,7 +101,7 @@ def draw_rects(image, rects):
         createLine(out_image, start, th, (0, 255, 0))
         createLine(out_image, th, tl, (0, 0, 255))
 
-        print("Angle = ",ma.tan(twd/(thd+0.001)))
+        #print("Angle = ",ma.tan(twd/(thd+0.001)))
         cv.rectangle(out_image, (xx, yy), (xx + ww, yy + hh), (0, 0, 255), 2) # The closest person has a red rectangle
 
     return out_image
@@ -91,6 +111,7 @@ def draw_rects(image, rects):
 if __name__ == "__main__":
     # bi.Calibrat()
     # Using camera
+    print("Starting up camera capture...")
     cap = cv.VideoCapture(0) # The Parameter is the index of the camera
     if not cap.isOpened():
         print("Unable to capture camera")
@@ -101,20 +122,34 @@ if __name__ == "__main__":
         # test_image = cv.imread(image)
         if ret:
             face_rects = detect_faces(image)  # detect the faces
+
+
+            #if a face is detected, crop it and save it to a file
             if len(face_rects) > 0:
-                num_faces += 1
-                x,y,w,h = face_rects[0]
-                #TODO: Save image
+                x,y,w,h = face_rects[0] #describes the rectangle surrounding the face
+                #get a grayscale version of the image, and crop it to the face
                 image_gray = cv.cvtColor(image, cv.COLOR_RGB2GRAY)
                 face_gray = image_gray.copy()
                 face_gray = face_gray[y:y+h, x:x+w]
-                filepath = "{}/face_{}_{}.png".format("thor", "thor", num_faces)
-                print("Saving image {} out of {} to `{}`", num_faces, max_faces, filepath)
-                cv.imwrite(filepath, face_gray)
-                time.sleep(0.5)
+
+                #generate the file name to be unique for each image
+                filename = "face_{}_{}.png".format(__data_label__, num_faces)
+                filepath = os.path.join(__data_folder_path__, filename)
+                print(filepath)
+
+                #try to write the image to a file.
+                if(cv.imwrite(filepath, face_gray)):
+                    print("Saving image {} out of {} to \"{}\"".format(num_faces, max_faces, filepath))
+                    num_faces += 1
+                    time.sleep(0.5)
+                else:
+                    print("ERROR: Unable to save image to \"{}\"".format(filepath))
+
+
+
 
             #TODO: change from an image display to a video display
-            # #show the image and waits for a key press before exiting
+            #show the image and waits for a key press before exiting
             draw_image = draw_rects(image, face_rects)
             draw_image = cv.resize(draw_image, size)
             cv.imshow('Detected Faces', draw_image)
